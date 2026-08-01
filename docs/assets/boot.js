@@ -10,6 +10,9 @@ const blobUrl = URL.createObjectURL(new Blob([source], { type: "text/javascript"
 
 try {
   await import(blobUrl);
+  const extension = document.createElement("script");
+  extension.src = "/assets/bookmark-share.js";
+  document.head.append(extension);
 } finally {
   setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
 }
