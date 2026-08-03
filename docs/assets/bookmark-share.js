@@ -1,200 +1,41 @@
 (() => {
   const DB_NAME = "juku-print-library";
   const STORE = "materials";
-  const ENDPOINT = location.hostname.endsWith("github.io")
-    ? "https://printstock-shared.baystars1899.chatgpt.site/api/shared-workspace"
-    : "/api/shared-workspace";
-
-  const css = `
-    .ps-share-section{margin-top:18px}.ps-share-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}.ps-share-actions button{min-height:42px;padding:0 16px;border-radius:10px;border:1px solid #4f46e5;background:#4f46e5;color:#fff;font-weight:700;cursor:pointer}.ps-share-actions button:last-child{background:#fff;color:#4f46e5}
-    .ps-share-cover{position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.56);display:grid;place-items:center;padding:20px}.ps-share-modal{width:min(760px,100%);max-height:min(780px,calc(100vh - 40px));overflow:auto;background:#fff;border-radius:20px;padding:26px;box-shadow:0 30px 80px rgba(15,23,42,.36);color:#1e293b}.ps-share-modal h2{margin:0 0 6px;font-size:24px}.ps-share-modal p{color:#64748b;line-height:1.6}.ps-share-close{float:right;border:0;background:#f1f5f9;border-radius:10px;width:38px;height:38px;font-size:20px;cursor:pointer}.ps-share-row{display:flex;gap:10px;align-items:center;margin:14px 0}.ps-share-row input,.ps-share-row select{min-height:44px;border:1px solid #cbd5e1;border-radius:10px;padding:0 12px;font-size:16px;flex:1;min-width:0}.ps-share-primary{min-height:44px;padding:0 18px;border:0;border-radius:10px;background:#4f46e5;color:#fff;font-weight:700;cursor:pointer}.ps-share-note{margin:14px 0;padding:13px;background:#eef2ff;border-radius:12px;color:#3730a3}.ps-share-card{border:1px solid #dbeafe;border-radius:14px;padding:16px;margin-top:14px}.ps-share-card b{font-size:17px}.ps-share-code{font-size:28px;letter-spacing:.08em;font-weight:800;color:#312e81;margin:10px 0}.ps-share-meta{font-size:13px;color:#64748b;margin-top:7px}.ps-share-warning{padding:12px;border-radius:10px;background:#fffbeb;color:#92400e;margin:12px 0}.ps-share-apply{margin-top:12px}.ps-share-empty{padding:22px;text-align:center;color:#64748b}
-  `;
-  const style = document.createElement("style");
-  style.textContent = css;
-  document.head.append(style);
-
   const norm = value => String(value || "").replace(/\s+/gu, " ").trim().toLocaleLowerCase("ja");
   const now = () => new Date().toISOString();
-  const endpoint = ENDPOINT;
+  const el = (tag, className, text) => { const node = document.createElement(tag); if (className) node.className = className; if (text !== undefined) node.textContent = text; return node; };
 
-  function openDb() {
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open(DB_NAME, 1);
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
-  }
-  async function getMaterials() {
-    const db = await openDb();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE, "readonly");
-      const request = tx.objectStore(STORE).getAll();
-      request.onsuccess = () => resolve(request.result || []);
-      request.onerror = () => reject(request.error);
-      tx.oncomplete = () => db.close();
-    });
-  }
-  async function putMaterial(material) {
-    const db = await openDb();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE, "readwrite");
-      tx.objectStore(STORE).put(material);
-      tx.oncomplete = () => { db.close(); resolve(); };
-      tx.onerror = () => reject(tx.error);
-    });
-  }
-  function clean(value, key = "") {
-    if (key === "file" || key === "answerFile" || key === "previewUrl") return undefined;
-    if (value instanceof Blob || value instanceof ArrayBuffer) return undefined;
-    if (Array.isArray(value)) return value.map(item => clean(item)).filter(item => item !== undefined);
-    if (value && typeof value === "object") {
-      return Object.fromEntries(Object.entries(value).flatMap(([k, v]) => {
-        const cleaned = clean(v, k);
-        return cleaned === undefined ? [] : [[k, cleaned]];
-      }));
-    }
-    return value;
-  }
-  function fingerprint(material) {
-    return {
-      title: norm(material.title),
-      grade: norm(material.grade),
-      subject: norm(material.subject),
-      bytes: material.file?.size || material.fileSize || 0,
-      answerBytes: material.answerFile?.size || material.answerFileSize || 0,
-      questionUnits: (material.segments || []).length,
-      answerUnits: (material.answerSegments || []).length
-    };
-  }
-  function code() {
-    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    const bytes = crypto.getRandomValues(new Uint8Array(14));
-    return "PS-" + [...bytes].map(b => chars[b % chars.length]).join("").replace(/(.{4})/g, "$1-").replace(/-$/, "");
-  }
+  const style = el("style");
+  style.textContent = `.ps-share-section{margin-top:18px}.ps-share-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}.ps-share-actions button,.ps-share-primary{min-height:44px;padding:0 18px;border-radius:10px;border:1px solid #4f46e5;background:#4f46e5;color:#fff;font-weight:700;cursor:pointer}.ps-share-actions button:last-child{background:#fff;color:#4f46e5}.ps-share-cover{position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.56);display:grid;place-items:center;padding:20px}.ps-share-modal{width:min(760px,100%);max-height:min(780px,calc(100vh - 40px));overflow:auto;background:#fff;border-radius:20px;padding:26px;box-shadow:0 30px 80px rgba(15,23,42,.36);color:#1e293b}.ps-share-modal h2{margin:0 0 6px;font-size:24px}.ps-share-modal p{color:#64748b;line-height:1.6}.ps-share-close{float:right;border:0;background:#f1f5f9;border-radius:10px;width:38px;height:38px;font-size:20px;cursor:pointer}.ps-share-row{display:flex;gap:10px;align-items:center;margin:14px 0}.ps-share-row select,.ps-share-row input,.ps-share-row textarea{min-height:44px;border:1px solid #cbd5e1;border-radius:10px;padding:10px 12px;font-size:16px;flex:1;min-width:0}.ps-share-row textarea,.ps-share-code{min-height:120px;resize:vertical}.ps-share-note{margin:14px 0;padding:13px;background:#eef2ff;border-radius:12px;color:#3730a3}.ps-share-card{border:1px solid #dbeafe;border-radius:14px;padding:16px;margin-top:14px}.ps-share-card b{font-size:17px}.ps-share-code{display:block;width:100%;box-sizing:border-box;font-size:13px;line-height:1.45;letter-spacing:.02em;font-weight:700;color:#312e81;margin:10px 0;border:1px solid #c7d2fe;border-radius:10px;padding:12px;word-break:break-all}.ps-share-meta{font-size:13px;color:#64748b;margin-top:7px}.ps-share-warning{padding:12px;border-radius:10px;background:#fffbeb;color:#92400e;margin:12px 0}.ps-share-apply{margin-top:12px}.ps-share-empty{padding:22px;text-align:center;color:#64748b}`;
+  document.head.append(style);
+
+  function openDb() { return new Promise((resolve, reject) => { const request = indexedDB.open(DB_NAME, 1); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error); }); }
+  async function getMaterials() { const db = await openDb(); return new Promise((resolve, reject) => { const tx = db.transaction(STORE, "readonly"); const request = tx.objectStore(STORE).getAll(); request.onsuccess = () => resolve(request.result || []); request.onerror = () => reject(request.error); tx.oncomplete = () => db.close(); }); }
+  async function putMaterial(material) { const db = await openDb(); return new Promise((resolve, reject) => { const tx = db.transaction(STORE, "readwrite"); tx.objectStore(STORE).put(material); tx.oncomplete = () => { db.close(); resolve(); }; tx.onerror = () => reject(tx.error); }); }
+  function clean(value, key = "") { if (key === "file" || key === "answerFile" || key === "previewUrl" || value instanceof Blob || value instanceof ArrayBuffer) return undefined; if (Array.isArray(value)) return value.map(item => clean(item)).filter(item => item !== undefined); if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).flatMap(([k, v]) => { const item = clean(v, k); return item === undefined ? [] : [[k, item]]; })); return value; }
+  function fingerprint(material) { return { title: norm(material.title), grade: norm(material.grade), subject: norm(material.subject), bytes: material.file?.size || material.fileSize || 0 }; }
+  function encodePack(pack) { const bytes = new TextEncoder().encode(JSON.stringify(pack)); let binary = ""; for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000)); return "PS1." + btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, ""); }
+  function decodePack(value) { const code = value.replace(/\s+/g, "").trim(); if (!code.startsWith("PS1.")) throw new Error("PS1.から始まる共有コードを貼り付けてください。"); const raw = code.slice(4).replace(/-/g, "+").replace(/_/g, "/"); const binary = atob(raw + "=".repeat((4 - raw.length % 4) % 4)); return JSON.parse(new TextDecoder().decode(Uint8Array.from(binary, letter => letter.charCodeAt(0)))); }
   function close() { document.querySelector(".ps-share-cover")?.remove(); }
-  function modal(content) {
-    close();
-    const cover = document.createElement("div");
-    cover.className = "ps-share-cover";
-    cover.innerHTML = `<div class="ps-share-modal"><button class="ps-share-close" aria-label="閉じる">×</button><div class="ps-share-body"></div></div>`;
-    cover.querySelector(".ps-share-body").append(content);
-    cover.querySelector(".ps-share-close").onclick = close;
-    cover.addEventListener("mousedown", event => { if (event.target === cover) close(); });
-    document.body.append(cover);
-    return cover;
-  }
-  function el(html) {
-    const node = document.createElement("div");
-    node.innerHTML = html.trim();
-    return node.firstElementChild;
-  }
+  function modal(content) { close(); const cover = el("div", "ps-share-cover"); const box = el("div", "ps-share-modal"); const closeButton = el("button", "ps-share-close", "×"); closeButton.setAttribute("aria-label", "閉じる"); closeButton.onclick = close; box.append(closeButton, content); cover.append(box); cover.addEventListener("mousedown", event => { if (event.target === cover) close(); }); document.body.append(cover); }
+  function fingerprintLabel(material) { return `${material.title || "名称未設定"} ・ ${material.grade || "学年未設定"} ・ ${(material.segments || []).length}単元`; }
+
   function shareDialog() {
-    const content = el(`<div><h2>栞を送る</h2><p>PDF本体は送らず、単元分け・目次・解答対応だけを共有します。</p><div class="ps-share-row"><select aria-label="送る教材"></select><button class="ps-share-primary">共有コードを作成</button></div><div class="ps-share-note">受け取る側には、同じ教材PDFが必要です。コードは必要な先生だけに渡してください。</div></div>`);
-    const select = content.querySelector("select");
+    const content = el("div"); content.append(el("h2", "", "栞を送る"), el("p", "", "PDF本体は送らず、単元分け・目次・解答対応だけを共有します。"));
+    const row = el("div", "ps-share-row"), select = el("select"), button = el("button", "ps-share-primary", "共有コードを作成"); select.setAttribute("aria-label", "送る教材"); row.append(select, button); content.append(row, el("div", "ps-share-note", "共有コードはサーバーに保存されません。受け取る側には、同じ教材PDFが必要です。"));
     getMaterials().then(materials => {
-      if (!materials.length) { select.replaceWith(el(`<div class="ps-share-empty">送れる教材がありません。</div>`)); content.querySelector("button").disabled = true; return; }
-      materials.forEach((material, index) => {
-        const option = document.createElement("option");
-        option.value = String(index);
-        option.textContent = `\${material.title || "名称未設定"} ・ \${material.grade || "学年未設定"} ・ \${(material.segments || []).length}単元`;
-        select.append(option);
-      });
-      content.querySelector("button").onclick = async event => {
-        const button = event.currentTarget;
-        const material = materials[Number(select.value)];
-        const shareCode = code();
-        const payload = {
-          type: "printstock-bookmark-pack",
-          version: 1,
-          code: shareCode,
-          createdAt: now(),
-          material: clean(material),
-          fingerprint: fingerprint(material)
-        };
-        button.disabled = true; button.textContent = "送信中…";
-        try {
-          const response = await fetch(endpoint, {
-            method: "PUT",
-            headers: { "content-type": "application/json", "x-printstock-workspace": shareCode },
-            body: JSON.stringify(payload)
-          });
-          if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || "送信できませんでした");
-          content.innerHTML = `<h2>栞を送る</h2><p>次のコードを受け取る先生へ伝えてください。</p><div class="ps-share-card"><b>\${material.title || "名称未設定"}</b><div class="ps-share-code">\${shareCode}</div><div class="ps-share-meta">問題 \${(material.segments || []).length}単元・解答 \${(material.answerSegments || []).length}単元 ／ \${new Date(payload.createdAt).toLocaleString("ja-JP")}</div></div><div class="ps-share-warning">このコードで受け取れるのは栞・単元情報のみです。PDF自体は送信されません。</div>`;
-          navigator.clipboard?.writeText(shareCode).catch(() => {});
-        } catch (error) {
-          button.disabled = false; button.textContent = "共有コードを作成";
-          alert(error.message || "送信できませんでした");
-        }
-      };
+      if (!materials.length) { select.replaceWith(el("div", "ps-share-empty", "送れる教材がありません。")); button.disabled = true; return; }
+      materials.forEach((material, index) => { const option = el("option", "", fingerprintLabel(material)); option.value = String(index); select.append(option); });
+      button.onclick = () => { const material = materials[Number(select.value)]; const payload = { type: "printstock-bookmark-pack", version: 1, createdAt: now(), material: clean(material), fingerprint: fingerprint(material) }; const shareCode = encodePack(payload); const card = el("div", "ps-share-card"); card.append(el("b", "", material.title || "名称未設定")); const code = el("textarea", "ps-share-code"); code.value = shareCode; code.readOnly = true; code.onfocus = event => event.currentTarget.select(); card.append(code, el("div", "ps-share-meta", `問題 ${(material.segments || []).length}単元・解答 ${(material.answerSegments || []).length}単元`)); content.replaceChildren(el("h2", "", "栞を送る"), el("p", "", "次の共有コードを、受け取る先生へそのまま渡してください。コピー済みです。"), card, el("div", "ps-share-warning", "共有されるのは栞と教材情報だけで、PDFは送られません。")); navigator.clipboard?.writeText(shareCode).catch(() => {}); };
     });
     modal(content);
   }
   function receiveDialog() {
-    const content = el(`<div><h2>栞を受け取る</h2><p>受け取った共有コードを入力してください。PDFはこの端末の教材にだけ適用します。</p><div class="ps-share-row"><input aria-label="共有コード" placeholder="例：PS-ABCD-EFGH-IJKL" autocomplete="off"><button class="ps-share-primary">コードを確認</button></div></div>`);
-    const input = content.querySelector("input");
-    content.querySelector("button").onclick = async event => {
-      const shareCode = input.value.trim().toUpperCase();
-      if (shareCode.length < 8) return alert("共有コードを入力してください。");
-      const button = event.currentTarget; button.disabled = true; button.textContent = "確認中…";
-      try {
-        const response = await fetch(endpoint, { headers: { "x-printstock-workspace": shareCode } });
-        if (!response.ok) throw new Error("コードが見つからないか、無効になっています。");
-        const pack = await response.json();
-        if (pack?.type !== "printstock-bookmark-pack" || !pack.material) throw new Error("このコードは共有栞ではありません。");
-        const materials = await getMaterials();
-        const source = pack.fingerprint || {};
-        const exact = materials.filter(item => {
-          const fp = fingerprint(item);
-          return fp.title === source.title && fp.grade === source.grade && fp.subject === source.subject && !!fp.bytes && fp.bytes === source.bytes;
-        });
-        const similar = materials.filter(item => !exact.includes(item) && norm(item.title) === source.title && norm(item.grade) === source.grade && norm(item.subject) === source.subject);
-        const choices = [...exact, ...similar];
-        const panel = el(`<div><h2>受け取る栞を確認</h2><div class="ps-share-card"><b>\${pack.material.title || "名称未設定"}</b><div class="ps-share-meta">問題 \${(pack.material.segments || []).length}単元・解答 \${(pack.material.answerSegments || []).length}単元<br>最終共有：\${new Date(pack.createdAt).toLocaleString("ja-JP")}</div></div></div>`);
-        if (!choices.length) {
-          panel.append(el(`<div class="ps-share-warning">この端末に一致する教材がありません。先に同じPDFを登録してから受け取ってください。</div>`));
-        } else {
-          const select = document.createElement("select");
-          choices.forEach((item, index) => {
-            const option = document.createElement("option");
-            option.value = String(index);
-            option.textContent = `\${exact.includes(item) ? "一致" : "参考候補"}：\${item.title}（\${item.grade}・\${item.subject}）`;
-            select.append(option);
-          });
-          const apply = el(`<button class="ps-share-primary ps-share-apply">選んだ教材に栞を適用</button>`);
-          apply.onclick = async () => {
-            const target = choices[Number(select.value)];
-            const next = {
-              ...target,
-              segments: pack.material.segments || [],
-              answerSegments: pack.material.answerSegments || [],
-              toc: pack.material.toc || target.toc,
-              updatedAt: now(),
-              bookmarkImportedAt: now(),
-              bookmarkSharedAt: pack.createdAt
-            };
-            await putMaterial(next);
-            alert(`「\${target.title}」に共有栞を適用しました。画面を更新して確認してください。`);
-            close();
-          };
-          panel.append(el(`<p>\${exact.length ? "一致した教材が見つかりました。" : "同名教材を参考候補として表示しています。ページ範囲を確認してから適用してください。"}</p>`), select, apply);
-        }
-        content.replaceWith(panel);
-      } catch (error) {
-        alert(error.message || "受け取れませんでした");
-        button.disabled = false; button.textContent = "コードを確認";
-      }
-    };
+    const content = el("div"); content.append(el("h2", "", "栞を受け取る"), el("p", "", "受け取った共有コードを、そのまま貼り付けてください。"));
+    const row = el("div", "ps-share-row"), input = el("textarea"), button = el("button", "ps-share-primary", "コードを確認"); input.placeholder = "PS1.から始まる共有コード"; input.setAttribute("aria-label", "共有コード"); row.append(input, button); content.append(row);
+    button.onclick = async () => { try { const pack = decodePack(input.value); if (pack?.type !== "printstock-bookmark-pack" || !pack.material) throw new Error("このコードは共有栞ではありません。"); const materials = await getMaterials(), source = pack.fingerprint || {}; const exact = materials.filter(item => { const fp = fingerprint(item); return fp.title === source.title && fp.grade === source.grade && fp.subject === source.subject && !!fp.bytes && fp.bytes === source.bytes; }); const similar = materials.filter(item => !exact.includes(item) && norm(item.title) === source.title && norm(item.grade) === source.grade && norm(item.subject) === source.subject); const choices = [...exact, ...similar]; const panel = el("div"); panel.append(el("h2", "", "受け取る栞を確認")); const card = el("div", "ps-share-card"); card.append(el("b", "", pack.material.title || "名称未設定"), el("div", "ps-share-meta", `問題 ${(pack.material.segments || []).length}単元・解答 ${(pack.material.answerSegments || []).length}単元`)); panel.append(card); if (!choices.length) panel.append(el("div", "ps-share-warning", "この端末に一致する教材がありません。先に同じPDFを登録してから受け取ってください。")); else { const select = el("select"); choices.forEach((item, index) => { const option = el("option", "", `${exact.includes(item) ? "一致" : "参考候補"}：${item.title}（${item.grade}・${item.subject}）`); option.value = String(index); select.append(option); }); const apply = el("button", "ps-share-primary ps-share-apply", "選んだ教材に栞を適用"); apply.onclick = async () => { const target = choices[Number(select.value)]; await putMaterial({ ...target, segments: pack.material.segments || [], answerSegments: pack.material.answerSegments || [], toc: pack.material.toc || target.toc, updatedAt: now(), bookmarkImportedAt: now(), bookmarkSharedAt: pack.createdAt }); alert(`「${target.title}」に共有栞を適用しました。画面を更新して確認してください。`); close(); }; panel.append(el("p", "", exact.length ? "一致した教材が見つかりました。" : "同名教材を参考候補として表示しています。ページ範囲を確認してから適用してください。"), select, apply); } content.replaceWith(panel); } catch (error) { alert(error.message || "受け取れませんでした"); } };
     modal(content);
   }
-  function inject() {
-    const target = document.querySelector(".workspace-setting") || document.querySelector(".backup-setting");
-    if (!target || document.querySelector(".ps-share-section")) return;
-    const section = el(`<section class="panel setting ps-share-section"><span class="round cyan">↗</span><div><h2>共有しおり</h2><p>PDFを送らずに、教材の単元分け・目次・解答対応だけをコードでやり取りします。</p><div class="ps-share-actions"><button type="button">栞を送る</button><button type="button">栞を受け取る</button></div></div></section>`);
-    const [send, receive] = section.querySelectorAll("button");
-    send.onclick = shareDialog;
-    receive.onclick = receiveDialog;
-    target.parentElement.insertBefore(section, target);
-  }
-  new MutationObserver(inject).observe(document.documentElement, { childList: true, subtree: true });
-  inject();
+  function inject() { const target = document.querySelector(".workspace-setting") || document.querySelector(".backup-setting"); if (!target || document.querySelector(".ps-share-section")) return; const section = el("section", "panel setting ps-share-section"), inner = el("div"); inner.append(el("h2", "", "共有栞"), el("p", "", "PDFを送らずに、教材の単元分け・目次・解答対応だけをコードでやり取りします。")); const actions = el("div", "ps-share-actions"), send = el("button", "", "栞を送る"), receive = el("button", "", "栞を受け取る"); send.onclick = shareDialog; receive.onclick = receiveDialog; actions.append(send, receive); inner.append(actions); section.append(inner); target.parentElement.insertBefore(section, target); }
+  new MutationObserver(inject).observe(document.documentElement, { childList: true, subtree: true }); inject();
 })();
