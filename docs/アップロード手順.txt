@@ -1,0 +1,12 @@
+PrintStock GitHub版 更新手順
+
+1. GitHubの printstock-app/printstock-app.github.io を開きます。
+2. docs フォルダを開きます。
+3. このフォルダ内の index.html、assets、ocr、各SVGをすべてアップロードします。
+4. 同名ファイルの上書きを確認して、Commit changes を押します。
+
+今回の追加機能
+- 印刷プレビューで、離れた複数ページを順番に選択できます。
+- 選択中のページ番号と件数を確認できます。
+- 同じページをもう一度押すと選択から外せます。
+- 「すべて解除」で選択をまとめて消せます。
